@@ -51,6 +51,7 @@ async function run() {
     const instructorCollection = client.db('singerx').collection('instructor')
     const cartCollection = client.db('singerx').collection('cart')
     const usersCollection = client.db('singerx').collection('users')
+    const insClassCollection = client.db('singerx').collection('insClass')
 
 
     //   jwt function 
@@ -67,6 +68,35 @@ async function run() {
       res.send(result)
     })
 
+    app.patch('/classes/approve/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: 'Approved'
+        },
+      };
+
+      const result = await classCollection.updateOne(filter, updateDoc);
+      res.send(result);
+
+    })
+
+    app.patch('/classes/deny/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: 'Denied'
+        },
+      };
+
+      const result = await classCollection.updateOne(filter, updateDoc);
+      res.send(result);
+
+    })
 
     // all instructors
     app.get('/instructors', async (req, res) => {
@@ -81,6 +111,35 @@ async function run() {
       res.send(result);
     })
 
+    app.get('/carts', verifyJWT, async (req, res) => {
+      const email = req.query.email;
+
+      if (!email) {
+        res.send([]);
+      }
+
+      const decodedEmail = req.decoded.email;
+      if (email !== decodedEmail) {
+        return res.status(403).send({ error: true, message: 'forbidden access' })
+      }
+
+      const query = { email: email };
+      const result = await cartCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.delete('/carts/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await cartCollection.deleteOne(query);
+      res.send(result);
+    })
+
+    app.get('/users', verifyJWT, async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
+
     app.post('/users', async (req, res) => {
       const user = req.body;
       const query = { email: user.email }
@@ -94,54 +153,86 @@ async function run() {
       res.send(result);
     });
 
+    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
 
-    //   single product
-    app.get('/products/:id', async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) }
-      const options = {
-        projection: { toyName: 1, photoUrl: 1, sellerName: 1, sellerEmail: 1, price: 1, rating: 1, availableQuantity: 1, detailDescription: 1 }
+      if (req.decoded.email !== email) {
+        res.send({ admin: false })
       }
-      const result = await classCollection.findOne(query, options)
-      res.send(result)
-    })
 
-    // post method on products
-    app.post('/products', async (req, res) => {
-      const product = req.body;
-      const result = await classCollection.insertOne(product);
+      const query = { email: email }
+      const user = await usersCollection.findOne(query);
+      const result = { admin: user?.role === 'admin' }
       res.send(result);
     })
 
-    // update one product
-    app.patch('/products/:id', async (req, res) => {
+    app.get('/users/instructor/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      console.log(req.params.email)
+      console.log(email)
+      if (req.decoded.email !== email) {
+        res.send({ instructor: false })
+      }
+
+      const query = { email: email }
+      const user = await usersCollection.findOne(query);
+      const result = { instructor: user?.role === 'instructor' }
+      console.log(result)
+      res.send(result);
+    })
+
+    app.patch('/users/admin/:id', async (req, res) => {
       const id = req.params.id;
-      const filter = { _id: new ObjectId(id) }
-      const updatedProduct = req.body;
-      const product = {
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
         $set: {
-          photoUrl: updatedProduct.photoUrl,
-          toyName: updatedProduct.toyName,
-          sellerName: updatedProduct.sellerName,
-          sellerEmail: updatedProduct.sellerEmail,
-          price: updatedProduct.price,
-          rating: updatedProduct.rating,
-          availableQuantity: updatedProduct.availableQuantity,
-          detailDescription: updatedProduct.detailDescription,
-          category: updatedProduct.category
-        }
-      }
-      const result = await classCollection.updateOne(filter, product);
-      res.send(result)
+          role: 'admin'
+        },
+      };
+
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+
     })
 
-    app.delete('/products/:id', async (req, res) => {
+    app.patch('/users/instructor/:id', async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id) }
-      const result = await classCollection.deleteOne(query);
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: 'instructor'
+        },
+      };
+
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+
+    })
+
+    app.post('/insClass', async (req, res) => {
+      const insClass = req.body;
+      const result = await insClassCollection.insertOne(insClass);
       res.send(result);
     })
 
+    app.get('/insClass', verifyJWT, async (req, res) => {
+      const email = req.query.email;
+
+      if (!email) {
+        res.send([]);
+      }
+
+      const decodedEmail = req.decoded.email;
+      if (email !== decodedEmail) {
+        return res.status(403).send({ error: true, message: 'forbidden access' })
+      }
+
+      const query = { email: email };
+      const result = await insClassCollection.find(query).toArray();
+      res.send(result);
+    });
 
 
     // Send a ping to confirm a successful connection
